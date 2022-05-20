@@ -1,12 +1,12 @@
 from sqlalchemy import create_engine
 import os
+from sys import argv
 
 T_key = "5333658490:AAHQ5hbHir5feIAO79FHHNs1uHj8eEFfWOI"
 T_Constantin = 1307289323
 
 
 items_page = 1000
-
 """
 Agend
 Hotar
@@ -130,17 +130,17 @@ Citat
 Dosar
 """
 
-Folder_Core = "W:/instante_md"
-Folder_PDF_Hotar = f"{Folder_Core}/PDF_Hotar"
+Folder_Core = "E:/instante_md"
+#Folder_PDF_Hotar = f"{Folder_Core}/PDF_Hotar"
 Folder_PDF_Hotar_eSSD = f"{Folder_Core}/PDFs_Instante_eSSD"
 Folder_TXT_Hotar = f"{Folder_Core}/TXT_Hotar"
 
 mkdirx(Folder_Core)
-mkdirx(Folder_PDF_Hotar)
+#mkdirx(Folder_PDF_Hotar)
 mkdirx(Folder_TXT_Hotar)
 
 
-from sys import argv
+
 if __name__ == "__main__":
     print("Executing the main")
 else: 

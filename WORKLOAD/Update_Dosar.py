@@ -1,5 +1,6 @@
-#& d:/Python_Code/instante_md/Scripts/python.exe d:/Python_Code/instante_md/WORKLOAD/Update_Dosar.py
 """
+d:/Python_Code/instante_md/Scripts/python.exe d:/Python_Code/instante_md/WORKLOAD/Update_Dosar.py
+
 Agend!!! SKA - reversed. Need to read in reverse, AND limited to 10!
 Hotar
 Inche

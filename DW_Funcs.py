@@ -1,4 +1,4 @@
-from time import sleep
+from time import sleep, perf_counter
 import pandas as pd
 import grequests #grequests must be imported before requests
 import requests
@@ -8,6 +8,26 @@ from DB_Scripts import insert_df_data, sql_readpd_custom, execute_sql
 from random import uniform as rdm
 import re
 
+import os
+import logging
+from datetime import date
+today = date.today()
+# LOGGING
+logger_filename = "DW_Funcs"
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+Folder = f"Logs/{today} Logs"
+if not os.path.exists(Folder):
+    os.makedirs(Folder)
+formatter = logging.Formatter(
+    '%(asctime)s >> %(levelname)s >> %(name)s >> %(message)s', datefmt='%a, %d %b %Y %H:%M:%S')
+file_handler = logging.FileHandler(f'{Folder}/{logger_filename}.log')
+file_handler.setFormatter(formatter)
+logger.addHandler(file_handler)
+print(f"# {'_'*60}")
+
+
 
 
 def total_results(Linkx, items_page = 10):
@@ -16,7 +36,6 @@ def total_results(Linkx, items_page = 10):
         URLx = f"{configs.URL_Generic}{Linkx}&items_per_page={items_page}"
     else: 
         URLx = f"{configs.URL_Generic}{Linkx}"
-    print(URLx)
     response = requests.get(URLx)
     soup = bs(response.text, 'html.parser')
     results = soup.find("div", {"class": "aaij-pager"}).find("span", {"class": "results"}).get_text()
@@ -36,7 +55,7 @@ def total_pages_results(results, items_per_page =10):
     #print(pages)
     return pages
 
-#Gets the links of pdfs
+
 def list_links(Linkx, page, items_page):
     try:
 
@@ -79,8 +98,8 @@ def df_html(Linkx, page, items_page):
 def df_and_links(Linkx, page, cols_list, items_page):
     listx = list_links(Linkx, page, items_page)
     
-    sleep_time = round(rdm(1,3),2)
-    sleep(sleep_time)
+    #sleep_time = round(rdm(1,3),2)
+    #sleep(sleep_time)
     
     dfx = df_html(Linkx, page, items_page)
     dfx= dfx.replace({"'":"",",":";","'":""})
@@ -152,7 +171,7 @@ def Update_Table (vTable , vURL, vCols, vitems_page, vDuplicate_criteria2_column
             """
             page += 1
 
-            sleep_time = round(rdm(1,3),2)
+            sleep_time = round(rdm(0.5,1.5),2)
             if update_all:
                 sleep_time *= 2 #Sleep twice as more if updating all tables == True
             sleep(sleep_time)
@@ -190,117 +209,6 @@ def Update_Table_Agend (vTable= configs.Inst_Agend_Table , vURL = configs.URL_Ag
     a = 1
 
 
-
-#Reversed pages!!!
-def Update_Table_Agend (vTable= configs.Inst_Agend_Table , vURL = configs.URL_Agend,\
-    vCols = configs.Inst_Agend_Cols, reversed = True, vitems_page= 10, \
-    vDuplicate_criteria2_column = "data_sedintei",\
-    update_all = False, update_until_page = 10, page =0, page_last = 10**15):
-
-    retry_count = 0
-    if update_all:
-        retry_max = 100
-    else:
-        retry_max = 10
-    
-    vDuplicate_criteria2 = f"AND  T1.{vDuplicate_criteria2_column} = T2.{vDuplicate_criteria2_column}"
-    Total_results = total_results(vURL, vitems_page)
-    print(Total_results)
-    Total_pages_results = total_pages_results(Total_results, vitems_page)
-    print(Total_pages_results)
-
-
-    Total_results_check = 0
-    dft_copy = []
-
-    if update_all:
-        update_until_page = Total_pages_results
-
-    if reversed:
-        rangex = range(Total_pages_results, Total_pages_results- update_until_page, -1)
-    else:
-        rangex = range(0, update_until_page)
-
-    loops = 0
-    for page in rangex:
-        try:
-            if reversed == True and page > page_last:
-                    continue
-            else:
-                pass
-
-            if Total_results_check > Total_results: break
-            
-            dft = df_and_links(vURL, page, vCols, items_page = vitems_page)
-            if len(dft)==0 and loops > 0:
-                break
-
-            if len(dft_copy) == 0:
-                #if dft["data_publicarii"][1] raises error, might break here. Hence checking with copy might be futile
-                print(f"page = {page}, \ndft['{vDuplicate_criteria2_column}'][1] = {dft[vDuplicate_criteria2_column][1]}")
-            else: 
-                print(f"page = {page}, \ndft['{vDuplicate_criteria2_column}'][1] = {dft[vDuplicate_criteria2_column][1]},\ndft_copy['{vDuplicate_criteria2_column}'][1] = {dft_copy[vDuplicate_criteria2_column][1]}")
-                if (page>0 and dft["doc_link"].tolist() == dft_copy["doc_link"].tolist()) or len(dft)==0:
-                    print("Breaking")
-                    break #Here break
-                        
-            insert_df_data(dft, vTable)
-            print(f"Inserted df to DB {vTable} from page = {page}")
-            #Delete duplicates, keeps latest
-            
-            dft_copy = dft.copy()
-            
-            #Checks if the first element of dtf["doc_link"] exists in DB, thus break
-            #?? Is it wise- Assumptions: they cannot modify docs once uploaded and keep same link
-            # = check if nothing new on 2nd! page, as the first page seems populated with bad dates
-            if loops > update_until_page and not update_all:
-                first_link = dft["doc_link"][0]
-                sqlq = f"""
-                SELECT count(doc_link)
-                FROM public.{vTable}
-                where doc_link = '{first_link}'
-                LIMIT 1
-                """
-                if sql_readpd_custom(configs.Inst_Hotar_Table,sqlq)["count"][0] > 0:
-                    print("Top link exists, breaking")
-                    break
-            
-            Total_results_check += len(dft)
-            
-            loops += 1
-
-            sleep_time = round(rdm(0.03,0.8),2)
-            if update_all:
-                sleep_time *= 2 #Sleep twice as more if updating all tables
-                if int(rdm(1,20)) == 10: sleep_time+= 10 #even more sleep with 5% chance
-            sleep(sleep_time)
-
-        except Exception as e:
-            print(e)
-            if retry_count < retry_max :
-                retry_count += 1
-                sleep(round(rdm(10,50),2))
-                continue
-                
-            else:
-                break
-
-        
-        print(f"{'_'*60}")
-
-    sql_dupl = f"""
-        DELETE   FROM public.{vTable} T1
-        USING       public.{vTable} T2
-        WHERE  T1.id       < T2.id          --deletes the older onces, as low index = older
-        AND    T1.doc_link = T2.doc_link
-        {vDuplicate_criteria2}
-        """
-    execute_sql(sql_dupl)
-    
-    return Total_results_check, page
-
-
-
 #Reversed pages!!!
 def Update_Table_Agend_grequests(vTable= configs.Inst_Agend_Table , vURL = configs.URL_Agend,\
     vCols = configs.Inst_Agend_Cols, vitems_page= 10, update_until_page = 10):
@@ -318,9 +226,7 @@ def Update_Table_Agend_grequests(vTable= configs.Inst_Agend_Table , vURL = confi
     page_last = 10**15
     #________________
     """
-    Total_results = total_results(vURL, vitems_page)
     Total_results = total_results(configs.URL_Agend, 10)
-    
     print(f"Total_results = {Total_results}")
     
     Total_pages_results = total_pages_results(Total_results, vitems_page)
@@ -337,7 +243,6 @@ def Update_Table_Agend_grequests(vTable= configs.Inst_Agend_Table , vURL = confi
     print("created grequests ")
     Request_Responses = grequests.map(rs, size= 5)
 
-
     dfa = pd.DataFrame(columns= configs.Inst_Agend_Cols)
     for page, response in enumerate(Request_Responses):
         try:
@@ -346,7 +251,7 @@ def Update_Table_Agend_grequests(vTable= configs.Inst_Agend_Table , vURL = confi
             dfa = pd.concat([dfa, dfx1], ignore_index=True)
         except Exception as e:
             print(e)
-                
+    
     insert_df_data(dfa, vTable)
 
 
@@ -363,3 +268,78 @@ def Update_Table_Agend_grequests(vTable= configs.Inst_Agend_Table , vURL = confi
     execute_sql(sql_dupl)
     
     return Total_results_check
+
+def chunks(number, chunksize):
+    data = list(range(number, 0, -1))
+    #print(data)
+    chunks = [data[x:x+chunksize] for x in range(0, len(data), chunksize)]
+    return chunks
+
+
+
+def Update_Table_Agend_grequests_ALL(vTable= configs.Inst_Agend_Table , vURL = configs.URL_Agend,\
+    vCols = configs.Inst_Agend_Cols, vitems_page= 10, update_until_page = 10):
+    
+    Total_results = total_results(configs.URL_Agend, 10)
+    print(f"Total_results = {Total_results}")
+    Total_pages_results = total_pages_results(Total_results, 10)
+    print(f"Total_pages_results {Total_pages_results}")
+    
+    #rangex = range(Total_pages_results, Total_pages_results- update_until_page, -1)
+
+    rangex = chunks(Total_pages_results, 15)
+    #print(rangex)
+    #!!!
+    vURL = configs.URL_Agend
+    Request_URLs_ALL = []
+    for chunk in rangex:
+        Range_URL_chunk = []
+        for page in chunk:
+            Range_URL_chunk.append(f"{configs.URL_Generic}{vURL}&items_per_page=10&page={page}")
+        Request_URLs_ALL.append(Range_URL_chunk)
+    
+    #print(Request_URLs_ALL[0])
+
+    dfs_count = 0
+    for index, chunk in enumerate (Request_URLs_ALL):
+        time_start_reqall_agebda = perf_counter()
+        for x in range(4):
+            try:
+                rs = (grequests.get(u) for u in chunk)
+                Request_Responses = grequests.map(rs, size= 5)
+                dfa = pd.DataFrame(columns= configs.Inst_Agend_Cols)
+                for page, response in enumerate(Request_Responses):
+                    try:
+                        dfx1 = pd.read_html(response.text)[0]
+                        dfx1.columns =  vCols
+                        dfa = pd.concat([dfa, dfx1], ignore_index=True)
+                    except Exception as e:
+                        print(e)
+                
+                print("len(dfa) = ", len(dfa))
+                insert_df_data(dfa, vTable)
+                dfs_count += 1
+                print(f"Inserted {dfs_count} dfs")
+                #sleep(rdm(0.1,1.2))
+                break
+            except Exception as e:
+                print(e)
+                logger.debug(e)
+                sleep(rdm(0.1, 2)*x*10)
+    
+        time_end_reqall_agebda = perf_counter()
+        took = round(time_end_reqall_agebda - time_start_reqall_agebda, 2)
+        print(f"Took {took} seconds to update {len(chunk)} pages, {index}/{len(Request_URLs_ALL)}")
+
+
+            
+    sql_dupl = f"""
+        DELETE   FROM public.{vTable} T1
+        USING       public.{vTable} T2
+        WHERE  T1.id       < T2.id          --deletes the older onces, as low index = older
+        AND    T1.nr_dosar = T2.nr_dosar
+        AND T1.ora_sedintei = T2.ora_sedintei
+        AND T1.data_sedintei = T2.data_sedintei 
+        """
+    execute_sql(sql_dupl)
+    

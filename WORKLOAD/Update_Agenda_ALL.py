@@ -1,5 +1,5 @@
 """
-d:/Python_Code/instante_md/Scripts/python.exe d:/Python_Code/instante_md/WORKLOAD/Update_Agend.py
+d:/Python_Code/instante_md/Scripts/python.exe d:/Python_Code/instante_md/WORKLOAD/Update_Agenda_ALL.py
 
 Agend!!! SKA
 Hotar
@@ -9,13 +9,13 @@ Dosar
 """
 from time import perf_counter as time
 time_start = time()
-from DW_Funcs import Update_Table_Agend_grequests
+from DW_Funcs import Update_Table_Agend_grequests_ALL
 import configs
 from Telegram_funcs import Send_Telegram_Message
 update_until_page = 20
 
 try:
-        Total_rows = Update_Table_Agend_grequests(update_until_page = update_until_page)
+        Total_rows = Update_Table_Agend_grequests_ALL()
         print("DONE")
 except Exception as e:
         print(e)
@@ -25,3 +25,8 @@ except Exception as e:
         """.replace("  ","")
         Send_Telegram_Message(configs.T_Constantin, Report)
         print("ERROR")
+        
+time_end_final = time()
+took = int(time_end_final-time_start)
+Report = f"Update_Agenda_ALL: finished, took = {took} seconds"
+Send_Telegram_Message(configs.T_Constantin, Report)

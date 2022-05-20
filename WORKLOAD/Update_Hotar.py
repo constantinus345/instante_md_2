@@ -1,5 +1,6 @@
-#& d:/Python_Code/instante_md/Scripts/python.exe d:/Python_Code/instante_md/WORKLOAD/Update_Hotar.py
 """
+d:/Python_Code/instante_md/Scripts/python.exe d:/Python_Code/instante_md/WORKLOAD/Update_Hotar.py
+
 Agend!!! SKA
 Hotar
 Inche
